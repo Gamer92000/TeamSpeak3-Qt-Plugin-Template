@@ -1,0 +1,96 @@
+name: Build and Deploy
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: 
+          - windows-2019
+        arch:
+          - x64
+          - x86
+      max-parallel: 3
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+          toolset: 14.0
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          architecture: ${{ matrix.arch }}
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '5.12.3'
+          host: 'windows'
+          target: 'desktop'
+          arch: ${{ matrix.arch == 'x64' && 'win64_msvc2017_64' || 'win32_msvc2017' }}
+          dir: '${{ github.workspace }}'
+          cache: true
+          cache-key-prefix: ${{ runner.os }}
+          setup-python: 'false'
+      - name: Setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.12
+      - name: Build
+        run: |
+          cmake -A ${{ matrix.arch == 'x64' && 'x64' || 'Win32' }} .
+          cmake --build . --config Release
+      - name: Rename release
+        run: |
+          mv release/QtExamplePlugin.dll QtExamplePlugin.${{ matrix.os }}_${{ matrix.arch }}.dll
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.os }}${{ matrix.arch }}
+          path: QtExamplePlugin.${{ matrix.os }}_${{ matrix.arch }}.dll
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Create Tmp Folder
+        run: |
+          mkdir -p tmp
+      - name: Collect artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: tmp
+      - name: Move artifacts to release
+        run: |
+          mv tmp/**/* deploy/plugins/
+      - name: Install zip
+        uses: montudor/action-zip@v1
+      - name: Zip output
+        run: zip -qq -r ../QtExamplePlugin.zip .
+        working-directory: deploy
+      - name: Upload artifacts
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: QtExamplePlugin.zip
+          asset_name: QtExamplePlugin.ts3_plugin
+          asset_content_type: application/zip
