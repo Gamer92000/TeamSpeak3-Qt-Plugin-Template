@@ -41,7 +41,7 @@ jobs:
           cache-key-prefix: ${{ runner.os }}
           setup-python: 'false'
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.12
+        uses: jwlawson/actions-setup-cmake@v1.13
       - name: Build
         run: |
           cmake -A ${{ matrix.arch == 'x64' && 'x64' || 'Win32' }} .
