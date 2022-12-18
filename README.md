@@ -6,7 +6,8 @@
   [![GitHub commits](https://badgen.net/github/commits/Gamer92000/TeamSpeak3-Qt-Plugin-Template/main)](https://GitHub.com/Gamer92000/TeamSpeak3-Qt-Plugin-Template/commit/)
   [![Github stars](https://img.shields.io/github/stars/Gamer92000/TeamSpeak3-Qt-Plugin-Template.svg)](https://GitHub.com/Gamer92000/TeamSpeak3-Qt-Plugin-Template/stargazers/)
   [![Renovate](https://img.shields.io/badge/maintained%20with-renovate-brightgreen)](https://github.com/Gamer92000/TeamSpeak3-Qt-Plugin-Template/issues/4)
-  [![Deploy](https://img.shields.io/github/workflow/status/Gamer92000/TeamSpeak3-Qt-Plugin-Template/Build%20and%20Deploy)](https://github.com/Gamer92000/TeamSpeak3-Qt-Plugin-Template/actions/workflows/deploy.yml)
+  <!-- [![Deploy](https://img.shields.io/github/actions/workflow/status/Gamer92000/TeamSpeak3-Qt-Plugin-Template/deploy.yml?branch=*)](https://github.com/Gamer92000/TeamSpeak3-Qt-Plugin-Template/actions/workflows/deploy.yml) -->
+  <!-- https://github.com/badges/shields/issues/8736 -->
   <br>
   <h3>If you like this project, please consider giving it a star ⭐️!</h3>
 </div>
