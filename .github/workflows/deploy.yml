@@ -5,71 +5,110 @@ on:
     tags:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
+env:
+  PLUGIN_NAME: QtExamplePlugin
+
 jobs:
+  prebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set Variables
+        # Version is the tag name without the v
+        run: |
+          sed -i "s/<version>/$(echo ${GITHUB_REF#refs/tags/v})/g" deploy/package.ini
+          sed -i "s/<version>/$(echo ${GITHUB_REF#refs/tags/v})/g" src/definitions.hpp
+          sed -i "s/<plugin_name>/${{ env.PLUGIN_NAME }}/g" CMakeLists.txt
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: prebuild
+          path: |
+            deploy/package.ini
+            src/definitions.hpp
+            CMakeLists.txt
+
   build:
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        os: 
-          - windows-2019
-        arch:
-          - x64
-          - x86
-      max-parallel: 3
+        include:
+          - os: windows-2019
+            arch: x64
+          - os: windows-2019
+            arch: x86
+          - os: ubuntu-latest
+            arch: x64
+          - os: macos-latest
+            arch: x64
     runs-on: ${{ matrix.os }}
+    needs: prebuild
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           submodules: true
-      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Download prebuild
+        uses: actions/download-artifact@v3
+        with:
+          name: prebuild
+          path: .
+      - name: Setup MSVC (Windows only)
+        uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.os == 'windows-2019'
         with:
           arch: ${{ matrix.arch }}
           toolset: 14.0
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          architecture: ${{ matrix.arch }}
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
-          version: '5.12.3'
-          host: 'windows'
+          version: '5.15.2'
           target: 'desktop'
-          arch: ${{ matrix.arch == 'x64' && 'win64_msvc2017_64' || 'win32_msvc2017' }}
+          arch: ${{ matrix.os == 'windows-2019' && (matrix.arch == 'x64' && 'win64_msvc2019_64' || 'win32_msvc2019' ) || (matrix.os == 'ubuntu-latest' && 'gcc_64' || 'clang_64') }}
           dir: '${{ github.workspace }}'
           cache: true
-          cache-key-prefix: ${{ runner.os }}
-          setup-python: 'false'
+          cache-key-prefix: ${{ runner.os }}-${{ matrix.arch }}-Qt
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.13
+        uses: jwlawson/actions-setup-cmake@v1.14
       - name: Build
         run: |
-          cmake -A ${{ matrix.arch == 'x64' && 'x64' || 'Win32' }} .
+          cmake ${{matrix.os == 'windows-2019' && '-A' || ''}} ${{matrix.os == 'windows-2019' && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} .
           cmake --build . --config Release
-      - name: Rename release
+      - name: Rename release (Windows)
+        if: matrix.os == 'windows-2019'
         run: |
-          mv release/QtExamplePlugin.dll QtExamplePlugin.${{ matrix.os }}_${{ matrix.arch }}.dll
+          mv Release/${{ env.PLUGIN_NAME }}.dll ${{ env.PLUGIN_NAME }}_win${{ matrix.arch == 'x64' && '64' || '32' }}.dll
+      - name: Rename release (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mv lib${{ env.PLUGIN_NAME }}.so ${{ env.PLUGIN_NAME }}_linux_amd64.so
+      - name: Rename release (MacOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mv lib${{ env.PLUGIN_NAME }}.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
+          install_name_tool -id ${{ env.PLUGIN_NAME }}_mac.dylib -change @rpath/QtWidgets.framework/Versions/5/QtWidgets @rpath/libQt5Widgets.dylib -change @rpath/QtGui.framework/Versions/5/QtGui @rpath/libQt5Gui.dylib -change @rpath/QtCore.framework/Versions/5/QtCore @rpath/libQt5Core.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
       - name: Archive production artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}${{ matrix.arch }}
-          path: QtExamplePlugin.${{ matrix.os }}_${{ matrix.arch }}.dll
+          path: ${{ env.PLUGIN_NAME }}_[win|linux|mac]*.*
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download prebuild
+        uses: actions/download-artifact@v3
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
+          name: prebuild
+          path: .
+      - name: Remove old artifacts
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: prebuild
       - name: Create Tmp Folder
         run: |
           mkdir -p tmp
@@ -83,14 +122,15 @@ jobs:
       - name: Install zip
         uses: montudor/action-zip@v1
       - name: Zip output
-        run: zip -qq -r ../QtExamplePlugin.zip .
+        run: zip -qq -r ../${{ env.PLUGIN_NAME }}.zip .
         working-directory: deploy
-      - name: Upload artifacts
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename release
+        run: |
+          mv ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
+      - name: Release
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: QtExamplePlugin.zip
-          asset_name: QtExamplePlugin.ts3_plugin
-          asset_content_type: application/zip
+          files: |
+            ./QtExamplePlugin.${{ github.ref_name }}.ts3_plugin
+          draft: false
+          prerelease: false

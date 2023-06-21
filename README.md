@@ -30,7 +30,7 @@ This plugin uses the [Qt](https://www.qt.io/) framework. The Qt documentation ca
 
 To compile this plugin (on Windows), you need the following software installed:
 
-* [Qt =5.12.3](https://www.qt.io/download)
+* [Qt =5.15.2](https://www.qt.io/download)
 * [CMake >=3.10](https://cmake.org/download/)
 * [Visual Studio <=2019 (Toolset v140)](https://visualstudio.microsoft.com/downloads/)
 
@@ -42,24 +42,30 @@ To create a new plugin based on this example, you can use the button `Use this t
 
 First, you need to rename the plugin. To do this, you need to change the following files:
 
-* `CMakeLists.txt`
-* `src/definitions.hpp`
 * `.github/workflows/deploy.yml`
 * `deploy/package.ini`
+* `src/config.cpp`
+* `src/definitions.hpp`
 
-For Cmake, you also need to point it to the correct Qt installation. To do this, you need to change the following line in `CMakeLists.txt`:
+When you want to compile locally you need to point CMake to the correct Qt installation. To do this, you need to change the following line in `CMakeLists.txt`:
 
 ```diff
--# list(APPEND CMAKE_PREFIX_PATH "H:/Qt/5.12.3/msvc2017_64")
-+list(APPEND CMAKE_PREFIX_PATH "H:/Qt/5.12.3/msvc2017_64")
+-# list(APPEND CMAKE_PREFIX_PATH "H:/Qt/5.15.2/msvc2019_64")
++list(APPEND CMAKE_PREFIX_PATH "H:/Qt/5.15.2/msvc2019_64")
+```
+
+Furthermore, you need to set `plugin_name` to allow for CMake to work properly:
+
+```diff
+-project("<plugin_name>")
++project("example")
 ```
 
 ### 📦 Before Updating
 
-Before publishing a new version of your plugin, don't forget to update the version number of the plugin in the following files:
-
-* `src/definitions.hpp`
-* `deploy/package.ini`
+Even the version numbering is handeled by the build script.
+The version number is defined by the tag pushed to GitHub.
+So there is nothing special you need to do 🎉.
 
 ## ⚠️ Disclaimer
 
