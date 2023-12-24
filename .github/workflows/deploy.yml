@@ -106,7 +106,7 @@ jobs:
           name: prebuild
           path: .
       - name: Remove old artifacts
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v4
         with:
           name: prebuild
       - name: Create Tmp Folder
