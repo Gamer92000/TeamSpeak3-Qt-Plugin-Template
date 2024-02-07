@@ -70,7 +70,7 @@ jobs:
           cache: true
           cache-key-prefix: ${{ runner.os }}-${{ matrix.arch }}-Qt
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.14
+        uses: jwlawson/actions-setup-cmake@v2.0
       - name: Build
         run: |
           cmake ${{matrix.os == 'windows-2019' && '-A' || ''}} ${{matrix.os == 'windows-2019' && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} .
