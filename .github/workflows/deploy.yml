@@ -61,7 +61,7 @@ jobs:
           arch: ${{ matrix.arch }}
           toolset: 14.0
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4.3.1
         with:
           version: '5.15.2'
           target: 'desktop'
